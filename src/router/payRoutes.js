@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import Stripe from 'stripe';
+import { getUserBalance, setUserBalance, topupBalance } from '../database/db.js';
+
 const router = express.Router();
-const stripe = require('stripe')(
-  'sk_test_51NjbB7DNoOorWK5qi6SoNw3nQyMEY943N9gPbRUbpYD27oXa3Ruo8w3LTudRGRNARKzm2fE4YUnhCbvGnf8QP21z00Dsd5BHbP'
-);
+const stripe = Stripe(process.env.STRIPE_PASS)
 
 // router endpoints
 router.post('/intents', async (req, res) => {
@@ -25,4 +26,37 @@ router.post('/intents', async (req, res) => {
   }
 });
 
-module.exports = router;
+router.get('/balance', (req, res) => {
+  const { uid } = req.cookies;
+  if (typeof uid !== 'string') {
+    res.status(400).send('malicious uid!');
+    return;
+  }
+  getUserBalance(uid).then(balance => {
+    res.send(JSON.stringify({
+      balance: balance,
+    }));
+  })
+});
+
+router.post('/topup', (req, res) => {
+  const { uid } = req.cookies;
+  if (typeof uid !== 'string') {
+    res.status(400).send('malicious uid!');
+    return;
+  }
+  const { amount } = req.body;
+  if (typeof amount !== 'number') {
+    res.status(400).send('malicious number!');
+    return;
+  }
+  topupBalance(uid, amount)
+    .then(() => res.send({
+      message: 'success'
+    }))
+    .catch(() => res.status(500).send({
+      message: 'failed'
+    }));
+})
+
+export default router;
