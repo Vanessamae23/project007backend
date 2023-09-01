@@ -13,11 +13,23 @@ router.post('/intents', async (req, res) => {
       amount: req.body.amount, 
       currency: 'sgd',
       payment_method_types: ['card'],
+      
     });
+    if (paymentIntent.error) {
+		  console.log('Something went wrong', paymentIntent.error);
+		  return;
+		};
+    console.log(req.body.billingDetails)
     // Complete the payment using a test card.
-    await stripe.paymentIntents.confirm(paymentIntent.id, {
-      payment_method: 'pm_card_mastercard',
-    });
+    const response = await stripe.paymentIntents.confirm(paymentIntent.id, {
+      payment_method: 'pm_card_visa',
+      payment_method_types: ['card'],
+    }).then((res) => {
+      console.log(res)
+    }).catch((err) => {
+      console.log(err.message)
+    })
+    
     // Return the secret
     res.json({ paymentIntent: paymentIntent.client_secret });
   } catch (e) {
