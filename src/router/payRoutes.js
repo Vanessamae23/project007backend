@@ -12,10 +12,11 @@ router.post('/intents', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: req.body.amount, 
       currency: 'sgd',
-      payment_method_types: ['card']
-    //   automatic_payment_methods: {
-    //     enabled: true,
-    //   },
+      payment_method_types: ['card'],
+    });
+    // Complete the payment using a test card.
+    await stripe.paymentIntents.confirm(paymentIntent.id, {
+      payment_method: 'pm_card_mastercard',
     });
     // Return the secret
     res.json({ paymentIntent: paymentIntent.client_secret });
