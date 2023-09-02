@@ -1,5 +1,5 @@
 import express from 'express';
-import { createUser, isLoggedIn, signIn } from '../database/db.js';
+import { clearSession, createUser, signIn } from '../database/db.js';
 
 const router = express.Router();
 
@@ -10,18 +10,19 @@ router.post('/register', (req, res) => {
         return;
     }
     createUser(email, password, fullName)
-        .then(feedback => {
-            res.cookie('uid', feedback.uid);
-            res.send({
-                fullName: feedback.fullName,
-                email: feedback.email,
-                message: feedback.message,
-            });
-        })
-        .catch(() => {
-            res.status(500).send({
-                message: 'failed to register'
-            });
+        .then(user => {
+            if (user.message === 'success') {
+                res.cookie('session', user.session);
+                res.send({
+                    fullName: user.fullName,
+                    email: user.email,
+                    message: user.message,
+                });
+            } else {
+                res.send({
+                    message: user.message,
+                });
+            }
         });
 })
 
@@ -34,7 +35,7 @@ router.post('/login', (req, res) => {
     signIn(email, password)
         .then(userInfo => {
             if (userInfo !== 'failed') {
-                res.cookie('uid', userInfo.uid);
+                res.cookie('session', userInfo.session);
                 res.send({
                     message: 'success',
                     email: userInfo.email,
@@ -54,18 +55,22 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/logout', (req, res) => {
-    res.cookie('uid', '');
-    res.send({
-        message: 'success'
-    });
+    if (req.user !== null) {
+        clearSession(req.user.session)
+            .then(feedback => {
+                res.clearCookie('session');
+                res.send(feedback);
+            });
+    } else {
+        res.status(400).send({
+            message: 'not logged in',
+        });
+    }
 });
 
 router.get('/is-logged-in', (req, res) => {
-    const { uid } = req.cookies;
-    isLoggedIn(uid).then(ans => {
-        res.send({
-            status: ans
-        });
+    res.send({
+        status: req.user !== null,
     });
 })
 

@@ -1,11 +1,7 @@
-import { initializeApp } from "firebase/app";
-import { getDatabase, child, get, ref, set } from "firebase/database";
-import {
-  signInWithEmailAndPassword,
-  getAuth,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
-import dotenv from "dotenv";
+import { initializeApp } from 'firebase/app';
+import { getDatabase, child, get, ref, set, remove } from 'firebase/database';
+import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const app = initializeApp({
@@ -58,11 +54,24 @@ export const setUserOTP = (uid, newValue) => {
   return set(otpRef, newValue);
 };
 
-export const getUserInfo = async (uid) => {
-  return get(child(ref(db), "users/" + uid + "/")).then((snapshot) =>
-    snapshot.val()
-  );
-};
+function randomString(length) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+}
+
+const setupSession = (uid) => {
+  const session = randomString(20);
+  const expiry = 1000 * 3600 * 24; // one day
+  set(ref(db, 'sessions/' + session + '/'), {
+    uid: uid,
+    expiry: new Date().getTime() + expiry,
+  });
+  return session;
+}
 
 export const signIn = async (email, password) => {
   return signInWithEmailAndPassword(auth, email, password)
@@ -73,16 +82,17 @@ export const signIn = async (email, password) => {
           if (!snapshot.exists()) {
             set(ref(db, "balance/" + res.user.uid + "/value/"), 0);
           }
-        }
-      );
-      return get(child(ref(db), "users/" + res.user.uid + "/")).then(
-        (snapshot) => snapshot.val()
-      );
+        });
+      // setup session
+      const session = setupSession(res.user.uid);
+      return get(child(ref(db), 'users/' + res.user.uid + '/'))
+        .then(snapshot => ({
+          ...snapshot.val(),
+          session: session,
+        }));
     })
-    .catch(() => {
-      return "failed";
-    });
-};
+    .catch(() => 'failed');
+}
 
 export const createUser = async (email, password, fullName) => {
   return createUserWithEmailAndPassword(auth, email, password)
@@ -92,13 +102,15 @@ export const createUser = async (email, password, fullName) => {
         fullName: fullName,
         email: email,
         uid: credentials.user.uid,
-      };
-      const balanceRef = ref(db, "balance/" + credentials.user.uid, "/value/");
+      }
+      const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
+      const session = setupSession(credentials.user.uid);
       return set(userRef, data)
         .then(() => set(balanceRef, 0))
         .then(() => ({
           ...data,
-          message: "success",
+          session: session,
+          message: 'success',
         }));
     })
     .catch(() => ({
@@ -106,8 +118,27 @@ export const createUser = async (email, password, fullName) => {
     }));
 };
 
-export const isLoggedIn = async (uid) => {
-  return get(child(ref(db), "balance/" + uid + "/value/")).then((snapshot) =>
-    snapshot.exists()
-  );
-};
+export const getUser = async (token) => {
+  return get(child(ref(db), 'sessions/' + token + '/'))
+    .then(snapshot => {
+      if (snapshot.exists()) {
+        console.log(snapshot.val());
+        if (new Date().getTime() > snapshot.val().expiry) {
+          remove(ref(db, 'sessions/' + token));
+          return null;
+        }
+        return get(child(ref(db), 'users/' + snapshot.val().uid + '/'))
+          .then(snapshot => snapshot.val());
+      } else {
+        return null;
+      }
+    });
+}
+
+export const clearSession = async (session) => {
+  const userNode = ref(db, 'sessions/' + session, '/');
+  return remove(userNode)
+    .then(() => ({
+      message: 'success',
+    }));
+}
