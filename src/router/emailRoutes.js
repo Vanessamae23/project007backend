@@ -1,6 +1,6 @@
 import express from "express";
 // import emailjs from "emailjs-com";
-import { generateOTP } from "../services/otp.js";
+import { generateOTP, generateReferenceCode } from "../services/otp.js";
 import nodemailer from "nodemailer";
 import { setUserOTP, getUserOTP, getUserInfo } from "../database/db.js";
 
@@ -24,23 +24,25 @@ router.post("/send", async (req, res) => {
     const { uid } = req.cookies;
     const userInfo = await getUserInfo(uid);
     const otp = generateOTP();
+    const referenceCode = generateReferenceCode();
     setUserOTP(uid, otp);
     const info = await transporter.sendMail({
       from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
       to: userInfo.email,
       subject: "Account Verification",
-      text: `${userInfo.fullName}'s Transaction Verification OTP: ${otp}`,
+      text: `${userInfo.fullName}'s Verification OTP: ${otp} (Reference Code: ${referenceCode}))`,
       html: `<div
       class="container"
       style="max-width: 90%; margin: auto; padding-top: 20px">
-      <h2>${userInfo.fullName}'s Transaction Verification</h2>
-      <p style="margin-bottom: 30px;">Pleas enter the sign up OTP to continue in our application</p>
+      <h2>${userInfo.fullName}'s Verification</h2>
+      <p style="margin-bottom: 10px;">Please enter the sign up OTP to continue in our application</p>
+      <p style="margin-bottom: 30px;">Reference Code: ${referenceCode}</p>
       <h1 style="font-size: 40px; letter-spacing: 2px; text-align:center;">${otp}</h1>
       </div>`,
     });
 
     // Return the secret
-    res.json({ message: "Successfully send a verification email" });
+    res.status(200).json({ message: referenceCode });
   } catch (e) {
     res.status(400).json({
       error: e.message,
