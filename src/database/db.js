@@ -51,7 +51,11 @@ function randomString(length) {
 
 const setupSession = (uid) => {
   const session = randomString(20);
-  set(ref(db, 'sessions/' + session + '/'), uid);
+  const expiry = 1000 * 3600 * 24; // one day
+  set(ref(db, 'sessions/' + session + '/'), {
+    uid: uid,
+    expiry: new Date().getTime() + expiry,
+  });
   return session;
 }
 
@@ -104,7 +108,12 @@ export const getUser = async (token) => {
   return get(child(ref(db), 'sessions/' + token + '/'))
     .then(snapshot => {
       if (snapshot.exists()) {
-        return get(child(ref(db), 'users/' + snapshot.val() + '/'))
+        console.log(snapshot.val());
+        if (new Date().getTime() > snapshot.val().expiry) {
+          remove(ref(db, 'sessions/' + token));
+          return null;
+        }
+        return get(child(ref(db), 'users/' + snapshot.val().uid + '/'))
           .then(snapshot => snapshot.val());
       } else {
         return null;
