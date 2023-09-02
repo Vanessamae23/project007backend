@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set, remove } from 'firebase/database';
+import { getDatabase, child, get, ref, set, remove, orderByChild, startAt, endAt, query } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -122,7 +122,6 @@ export const getUser = async (token) => {
   return get(child(ref(db), 'sessions/' + token + '/'))
     .then(snapshot => {
       if (snapshot.exists()) {
-        console.log(snapshot.val());
         if (new Date().getTime() > snapshot.val().expiry) {
           remove(ref(db, 'sessions/' + token));
           return null;
@@ -141,4 +140,24 @@ export const clearSession = async (session) => {
     .then(() => ({
       message: 'success',
     }));
+}
+
+export const getUserFrom = async (email, name) => {
+  if (email !== undefined) {
+    return get(query(
+      ref(db, 'users/'), 
+      orderByChild('email'), 
+      startAt(email), 
+      endAt(email + "\uf8ff"),
+    ))
+      .then(snapshot => snapshot.val());
+  } else {
+    return get(query(
+      ref(db, 'users/'),
+      orderByChild('fullName'),
+      startAt(name),
+      endAt(name + "\uf8ff"),
+    ))
+      .then(snapshot => snapshot.val());
+  }
 }

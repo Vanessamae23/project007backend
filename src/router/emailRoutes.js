@@ -2,7 +2,7 @@ import express from "express";
 // import emailjs from "emailjs-com";
 import { generateOTP, generateReferenceCode } from "../services/otp.js";
 import nodemailer from "nodemailer";
-import { setUserOTP, getUserOTP, getUserInfo } from "../database/db.js";
+import { setUserOTP, getUserOTP } from "../database/db.js";
 
 const router = express.Router();
 
@@ -19,35 +19,34 @@ const transporter = nodemailer.createTransport({
 
 // generate otp
 router.post("/send", async (req, res) => {
-  try {
-    // Generate a secret
-    const { uid } = req.cookies;
-    const userInfo = await getUserInfo(uid);
-    const otp = generateOTP();
-    const referenceCode = generateReferenceCode();
-    setUserOTP(uid, otp);
-    const info = await transporter.sendMail({
-      from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
-      to: userInfo.email,
-      subject: "Account Verification",
-      text: `${userInfo.fullName}'s Verification OTP: ${otp} (Reference Code: ${referenceCode}))`,
-      html: `<div
-      class="container"
-      style="max-width: 90%; margin: auto; padding-top: 20px">
-      <h2>${userInfo.fullName}'s Verification</h2>
-      <p style="margin-bottom: 10px;">Please enter the sign up OTP to continue in our application</p>
-      <p style="margin-bottom: 30px;">Reference Code: ${referenceCode}</p>
-      <h1 style="font-size: 40px; letter-spacing: 2px; text-align:center;">${otp}</h1>
-      </div>`,
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in',
     });
-
-    // Return the secret
-    res.status(200).json({ message: referenceCode });
-  } catch (e) {
-    res.status(400).json({
-      error: e.message,
-    });
+    return;
   }
+
+  // Generate a secret
+  const otp = generateOTP();
+  const referenceCode = generateReferenceCode();
+  setUserOTP(req.user.uid, otp);
+  const info = await transporter.sendMail({
+    from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
+    to: req.user.email,
+    subject: "Account Verification",
+    text: `${req.user.fullName}'s Verification OTP: ${otp} (Reference Code: ${referenceCode}))`,
+    html: `<div
+    class="container"
+    style="max-width: 90%; margin: auto; padding-top: 20px">
+    <h2>${req.user.fullName}'s Verification</h2>
+    <p style="margin-bottom: 10px;">Please enter the sign up OTP to continue in our application</p>
+    <p style="margin-bottom: 30px;">Reference Code: ${referenceCode}</p>
+    <h1 style="font-size: 40px; letter-spacing: 2px; text-align:center;">${otp}</h1>
+    </div>`,
+  });
+
+  // Return the secret
+  res.status(200).json({ message: referenceCode });
 });
 
 // validate otp

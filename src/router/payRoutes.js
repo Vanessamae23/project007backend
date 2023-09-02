@@ -2,8 +2,8 @@ import express from "express";
 import Stripe from "stripe";
 import {
   getUserBalance,
-  setUserBalance,
   topupBalance,
+  getUserFrom,
 } from "../database/db.js";
 
 const router = express.Router();
@@ -78,6 +78,41 @@ router.post('/topup', (req, res) => {
     .catch(() => res.status(500).send({
       message: 'failed'
     }));
+});
+
+router.get('/find-users', (req, res) => {
+  const { email, name } = req.query;
+  if (email !== undefined && typeof email !== 'string') {
+    res.status(400).send({
+      message: 'malicious email!'
+    });
+    return;
+  }
+  if (name !== undefined && typeof name !== 'string') {
+    res.status(400).send({
+      message: 'malicious name!'
+    });
+    return;
+  }
+  if (email === undefined && name === undefined) {
+    res.status(400).send({
+      message: 'Either email or name must be provided!'
+    })
+  }
+  getUserFrom(email, name).then(users => {
+    if (users) {
+      res.send({
+        users: Object.values(users).map(user => ({
+          email: user.email,
+          name: user.fullName
+        })),
+      });
+    } else {
+      res.send({
+        users: [],
+      })
+    }
+  });
 })
 
 export default router;

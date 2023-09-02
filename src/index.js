@@ -1,6 +1,7 @@
 import express from 'express';
 import payRoutes from './router/payRoutes.js';
 import authRoutes from './router/authRoutes.js';
+import emailRoutes from './router/emailRoutes.js';
 import { verifyUser } from './middleware/authMiddleware.js';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
