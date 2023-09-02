@@ -1,9 +1,10 @@
-import express from 'express';
-import payRoutes from './router/payRoutes.js';
-import authRoutes from './router/authRoutes.js';
-import bodyParser from 'body-parser';
-import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
+import express from "express";
+import payRoutes from "./router/payRoutes.js";
+import authRoutes from "./router/authRoutes.js";
+import emailRoutes from "./router/emailRoutes.js";
+import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -12,13 +13,14 @@ const PORT = process.env.PORT;
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-app.get('/', (req, res) => {
-	res.send("<h2>Hello world!</h2>");
+app.get("/", (req, res) => {
+  res.send("<h2>Hello world!</h2>");
 });
 
-app.use('/payments', payRoutes);
-app.use('/auth', authRoutes);
+app.use("/payments", payRoutes);
+app.use("/auth", authRoutes);
+app.use("/email", emailRoutes);
 
 app.listen(PORT, () => {
-  console.log('API is listening on port', PORT);
+  console.log("API is listening on port", PORT);
 });
