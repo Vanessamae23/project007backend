@@ -40,12 +40,13 @@ router.post('/intents', async (req, res) => {
 });
 
 router.get('/balance', (req, res) => {
-  const { uid } = req.cookies;
-  if (typeof uid !== 'string') {
-    res.status(400).send('malicious uid!');
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in'
+    });
     return;
   }
-  getUserBalance(uid).then(balance => {
+  getUserBalance(req.user.uid).then(balance => {
     res.send(JSON.stringify({
       balance: balance,
     }));
@@ -53,9 +54,10 @@ router.get('/balance', (req, res) => {
 });
 
 router.post('/topup', (req, res) => {
-  const { uid } = req.cookies;
-  if (typeof uid !== 'string') {
-    res.status(400).send('malicious uid!');
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in',
+    });
     return;
   }
   const { amount } = req.body;
@@ -63,7 +65,7 @@ router.post('/topup', (req, res) => {
     res.status(400).send('malicious number!');
     return;
   }
-  topupBalance(uid, amount)
+  topupBalance(req.user.uid, amount)
     .then(() => res.send({
       message: 'success'
     }))

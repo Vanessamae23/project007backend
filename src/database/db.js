@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set } from 'firebase/database';
+import { getDatabase, child, get, ref, set, remove } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -40,6 +40,21 @@ export const topupBalance = async (uid, amount) => {
   });
 };
 
+function randomString(length) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+}
+
+const setupSession = (uid) => {
+  const session = randomString(20);
+  set(ref(db, 'sessions/' + session + '/'), uid);
+  return session;
+}
+
 export const signIn = async (email, password) => {
   return signInWithEmailAndPassword(auth, email, password)
     .then(async res => {
@@ -50,12 +65,15 @@ export const signIn = async (email, password) => {
             set(ref(db, 'balance/' + res.user.uid + '/value/'), 0);
           }
         });
+      // setup session
+      const session = setupSession(res.user.uid);
       return get(child(ref(db), 'users/' + res.user.uid + '/'))
-        .then(snapshot => snapshot.val());
+        .then(snapshot => ({
+          ...snapshot.val(),
+          session: session,
+        }));
     })
-    .catch(() => {
-      return 'failed';
-    });
+    .catch(() => 'failed');
 }
 
 export const createUser = async (email, password, fullName) => {
@@ -68,10 +86,12 @@ export const createUser = async (email, password, fullName) => {
         uid: credentials.user.uid,
       }
       const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
+      const session = setupSession(credentials.user.uid);
       return set(userRef, data)
         .then(() => set(balanceRef, 0))
         .then(() => ({
           ...data,
+          session: session,
           message: 'success',
         }));
     })
@@ -80,7 +100,22 @@ export const createUser = async (email, password, fullName) => {
     }));
 }
 
-export const isLoggedIn = async (uid) => {
-  return get(child(ref(db), 'balance/' + uid + '/value/'))
-    .then(snapshot => snapshot.exists());
+export const getUser = async (token) => {
+  return get(child(ref(db), 'sessions/' + token + '/'))
+    .then(snapshot => {
+      if (snapshot.exists()) {
+        return get(child(ref(db), 'users/' + snapshot.val() + '/'))
+          .then(snapshot => snapshot.val());
+      } else {
+        return null;
+      }
+    });
+}
+
+export const clearSession = async (session) => {
+  const userNode = ref(db, 'sessions/' + session, '/');
+  return remove(userNode)
+    .then(() => ({
+      message: 'success',
+    }));
 }
