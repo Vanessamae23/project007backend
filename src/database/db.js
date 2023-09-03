@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set, remove, orderByChild, startAt, endAt, query } from 'firebase/database';
+import { getDatabase, child, get, ref, set, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -38,6 +38,11 @@ export const topupBalance = async (uid, amount) => {
     return setUserBalance(uid, balance + amount);
   });
 };
+
+export const transferAmount = async (senderUid, receiverUid, amount) => {
+  return topupBalance(senderUid, -amount)
+    .then(() => topupBalance(receiverUid, amount));
+}
 
 export const getUserOTP = async (uid) => {
   return get(child(ref(db), "otp/" + uid + "/value/")).then((snapshot) => {

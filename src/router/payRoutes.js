@@ -4,6 +4,7 @@ import {
   getUserBalance,
   topupBalance,
   getUserFrom,
+  transferAmount,
 } from "../database/db.js";
 
 const router = express.Router();
@@ -67,7 +68,7 @@ router.post('/topup', (req, res) => {
     return;
   }
   const { amount } = req.body;
-  if (typeof amount !== "number") {
+  if (typeof amount !== "number" || amount <= 0) {
     res.status(400).send("malicious number!");
     return;
   }
@@ -104,7 +105,8 @@ router.get('/find-users', (req, res) => {
       res.send({
         users: Object.values(users).map(user => ({
           email: user.email,
-          name: user.fullName
+          name: user.fullName,
+          uid: user.uid,
         })),
       });
     } else {
@@ -113,6 +115,41 @@ router.get('/find-users', (req, res) => {
       })
     }
   });
-})
+});
+
+router.post('/transfer', (req, res) => {
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in',
+    });
+    return;
+  }
+  
+  const { uid, amount } = req.body;
+  if (typeof uid !== 'string') {
+    res.status(400).send({
+      message: 'malicious uid!',
+    });
+    return;
+  }
+  if (typeof amount !== 'number' || amount <= 0) {
+    res.status(400).send({
+      message: 'malicious amount!',
+    });
+    return;
+  }
+
+  transferAmount(req.user.uid, uid, amount)
+    .then(() => {
+      res.send({
+        message: 'success',
+      });
+    })
+    .catch(() => {
+      res.send({
+        message: 'failed',
+      })
+    });
+});
 
 export default router;
