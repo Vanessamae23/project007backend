@@ -9,6 +9,7 @@ router.post('/register', (req, res) => {
         res.status(400).send('malicious email/password');
         return;
     }
+    
     createUser(email, password, fullName)
         .then(user => {
             if (user.message === 'success') {
@@ -16,6 +17,7 @@ router.post('/register', (req, res) => {
                 res.send({
                     fullName: user.fullName,
                     email: user.email,
+                    walletId: user.walletId,
                     message: user.message,
                 });
             } else {
@@ -39,6 +41,7 @@ router.post('/login', (req, res) => {
                 res.send({
                     message: 'success',
                     email: userInfo.email,
+                    walletId: userInfo.walletId,
                     fullName: userInfo.fullName,
                 });
             } else {

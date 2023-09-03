@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
+import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -68,6 +68,14 @@ function randomString(length) {
   return result;
 }
 
+const generateWalletId = (digits) => {
+  let uuid = [];
+  for (let i = 0; i < digits; i++) {
+      uuid.push(Math.floor(Math.random() * 10));
+  }
+  return uuid.join('');
+}
+
 const setupSession = (uid) => {
   const session = randomString(20);
   const expiry = 1000 * 3600 * 24; // one day
@@ -99,7 +107,41 @@ export const signIn = async (email, password) => {
     .catch(() => 'failed');
 }
 
+async function checkWalletIdExists() {
+  try {
+    const walletSnapshot = await get(child(ref(db), 'sessions/'));
+
+    if (walletSnapshot.exists()) {
+      walletId = generateWalletId(12);
+      await checkWalletIdExists(); // Recursive call to check the new walletId
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 export const createUser = async (email, password, fullName) => {
+  let walletId = generateWalletId(12);
+
+  let walletRef = ref(db, 'wallet/')
+
+  checkWalletIdExists()
+    .then(() => {
+      // Use the walletId once it's confirmed to be unique
+      console.log("Unique walletId:", walletId);
+    })
+    .catch((err) => {
+      console.error("Error checking walletId:", err);
+    });
+
+    const walletData = {
+      [walletId]: true,
+    };
+
+    push(ref(db, "wallet/"), walletId).then((res) => {
+      console.log(res)
+    }).catch((err) => console.log(err))
+
   return createUserWithEmailAndPassword(auth, email, password)
     .then(async (credentials) => {
       const userRef = ref(db, "users/" + credentials.user.uid + "/");
@@ -107,14 +149,19 @@ export const createUser = async (email, password, fullName) => {
         fullName: fullName,
         email: email,
         uid: credentials.user.uid,
+        walletId : walletId
       }
+      
       const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
+
+      
       const session = setupSession(credentials.user.uid);
       return set(userRef, data)
         .then(() => set(balanceRef, 0))
         .then(() => ({
           ...data,
           session: session,
+          walletId: walletId,
           message: 'success',
         }));
     })
