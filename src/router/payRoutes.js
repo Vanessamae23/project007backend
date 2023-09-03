@@ -5,15 +5,50 @@ import {
   topupBalance,
   getUserFrom,
   transferAmount,
+  getUser,
+  getUserPin,
 } from "../database/db.js";
+import bcrypt from "bcrypt";
+
+// Now you can use bcrypt as usual, for example:
+const saltRounds = 10;
+const plainTextPassword = "your_password_here";
 
 const router = express.Router();
 const stripe = Stripe(process.env.STRIPE_PASS);
 
+router.post("/confirmPin", async (req, res) => {
+  try {
+    const { session } = req.cookies; 
+    const pin = req.body.pin;
+    
+    await bcrypt.compare(pin, (await (getUserPin(req.user.uid))))
+       .then(result => {
+        if (!result) {
+          return res.status(400).json({
+            error: err.message,
+          });
+        }
+          res.send({
+            message: 'success'
+          })
+       })
+       .catch(err => {
+        res.status(400).json({
+          error: err.message,
+        });
+       })
+  } catch(e) {
+    res.status(400).json({
+      error: e.message,
+    });
+  };
+})
 // router endpoints
 router.post("/intents", async (req, res) => {
   try {
     // create a PaymentIntent
+    
     const paymentIntent = await stripe.paymentIntents.create({
       amount: req.body.amount,
       currency: "sgd",

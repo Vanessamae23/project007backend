@@ -4,13 +4,13 @@ import { clearSession, createUser, signIn } from '../database/db.js';
 const router = express.Router();
 
 router.post('/register', (req, res) => {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, pin } = req.body;
     if (typeof email !== 'string' || typeof password !== 'string' || typeof fullName !== 'string') {
         res.status(400).send('malicious email/password');
         return;
     }
     
-    createUser(email, password, fullName)
+    createUser(email, password, fullName, pin)
         .then(user => {
             if (user.message === 'success') {
                 res.cookie('session', user.session);
@@ -19,6 +19,7 @@ router.post('/register', (req, res) => {
                     email: user.email,
                     walletId: user.walletId,
                     message: user.message,
+                    pin: user.pin
                 });
             } else {
                 res.send({

@@ -2,6 +2,11 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
+import bcrypt from "bcrypt";
+
+// Now you can use bcrypt as usual, for example:
+const saltRounds = 10;
+const plainTextPassword = "your_password_here";
 dotenv.config();
 
 const app = initializeApp({
@@ -27,6 +32,18 @@ export const getUserBalance = async (uid) => {
     }
   });
 };
+
+export const getUserPin = async (uid) => {
+  return get(child(ref(db), "users/" + uid + "/hashed/")).then((snapshot) => {
+    if (snapshot.exists()) {
+      return (snapshot.val());
+    } else {
+      return 0;
+    }
+  });
+};
+
+
 
 export const setUserBalance = (uid, newValue) => {
   const balanceRef = ref(db, "balance/" + uid + "/value/");
@@ -108,49 +125,53 @@ export const signIn = async (email, password) => {
 }
 
 async function checkWalletIdExists() {
-  try {
-    const walletSnapshot = await get(child(ref(db), 'sessions/'));
+    const walletSnapshot = await get(child(ref(db), 'wallet/'));
 
     if (walletSnapshot.exists()) {
       walletId = generateWalletId(12);
       await checkWalletIdExists(); // Recursive call to check the new walletId
+    } else {
+      return walletId;
     }
-  } catch (err) {
-    console.error(err);
-  }
 }
 
-export const createUser = async (email, password, fullName) => {
+export const createUser = async (email, password, fullName, pin) => {
   let walletId = generateWalletId(12);
 
   let walletRef = ref(db, 'wallet/')
 
-  checkWalletIdExists()
-    .then(() => {
-      // Use the walletId once it's confirmed to be unique
-      console.log("Unique walletId:", walletId);
-    })
-    .catch((err) => {
-      console.error("Error checking walletId:", err);
-    });
+  // checkWalletIdExists()
+  //   .then((res) => {
+  //     // Use the walletId once it's confirmed to be unique
+  //     console.log("Unique walletId:", walletId);
+  //   })
+  //   .catch((err) => {
+  //     console.error("Error checking walletId:", err);
+  //   });
 
-    const walletData = {
-      [walletId]: true,
-    };
-
-    push(ref(db, "wallet/"), walletId).then((res) => {
-      console.log(res)
-    }).catch((err) => console.log(err))
+    
 
   return createUserWithEmailAndPassword(auth, email, password)
     .then(async (credentials) => {
       const userRef = ref(db, "users/" + credentials.user.uid + "/");
+      
+      
+      const hashedPass = await bcrypt.hash(pin, saltRounds);
+
       const data = {
         fullName: fullName,
         email: email,
         uid: credentials.user.uid,
-        walletId : walletId
+        walletId : walletId,
+        hashed: hashedPass
       }
+      const walletData = {
+        [data.uid]: walletId,
+      };
+  
+      set(ref(db, "wallet/" + data.uid), walletData).then((res) => {
+        console.log(res)
+      }).catch((err) => console.log(err))
       
       const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
 
@@ -165,8 +186,8 @@ export const createUser = async (email, password, fullName) => {
           message: 'success',
         }));
     })
-    .catch(() => ({
-      message: "email already in use",
+    .catch((e) => ({
+      message: e.message,
     }));
 };
 
