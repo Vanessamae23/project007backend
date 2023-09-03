@@ -1,7 +1,8 @@
 import express from "express";
 import payRoutes from "./router/payRoutes.js";
 import authRoutes from "./router/authRoutes.js";
-import emailRoutes from "./router/emailRoutes.js";
+import profileRoutes from "./router/profileRoutes.js"
+// import emailRoutes from "./router/emailRoutes.js";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
@@ -19,7 +20,8 @@ app.get("/", (req, res) => {
 
 app.use("/payments", payRoutes);
 app.use("/auth", authRoutes);
-app.use("/email", emailRoutes);
+app.use("/profile", profileRoutes);
+// app.use("/email", emailRoutes);
 
 app.listen(PORT, () => {
   console.log("API is listening on port", PORT);

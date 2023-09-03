@@ -1,5 +1,5 @@
 import express from 'express';
-import { createUser, isLoggedIn, signIn } from '../database/db.js';
+import { createUser, isLoggedIn, signIn, changeEmail, changePassword } from '../database/db.js';
 
 const router = express.Router();
 
@@ -67,6 +67,51 @@ router.get('/is-logged-in', (req, res) => {
             status: ans
         });
     });
+})
+
+router.post('/update-email', (req, res) => {
+    const { currentEmail, password, newEmail } = req.body;
+    changeEmail(currentEmail, password, newEmail)
+        .then((feedback) => {
+            console.log(feedback)
+            console.log(feedback.message)
+            if (feedback.message == 'success') {
+                res.send({
+                    message: 'success',
+                    newEmail: newEmail
+                })
+            } else {
+                res.send({
+                    message: 'failed to update email'
+                });
+            }
+        })
+        .catch(() => {
+            res.status(500).send({
+                message: 'failed to update email'
+            });
+        });
+})
+
+router.post('/update-password', (req, res) => {
+    const { email, currentPassword, newPassword } = req.body;
+    changePassword(email, currentPassword, newPassword)
+        .then((feedback) => {
+            if (feedback.message == 'success') {
+                res.send({
+                    message: 'success'
+                })
+            } else {
+                res.send({
+                    message: 'failed to update email'
+                });
+            }
+        })
+        .catch(() => {
+            res.status(500).send({
+                message: 'failed to update email'
+            });
+        });
 })
 
 export default router;
