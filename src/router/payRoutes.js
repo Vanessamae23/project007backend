@@ -58,22 +58,26 @@ router.post("/intents", async (req, res) => {
       console.log("Something went wrong", paymentIntent.error);
       return;
     }
-    console.log(req.body.billingDetails);
-    // Complete the payment using a test card.
-    const response = await stripe.paymentIntents
-      .confirm(paymentIntent.id, {
-        payment_method: "pm_card_visa",
-        payment_method_types: ["card"],
-      })
-      .then((res) => {
-        console.log(res);
-      })
-      .catch((err) => {
-        console.log(err.message);
-      });
+    console.log(paymentIntent)
 
+    // Complete the payment using a test card.
+    // const response = await stripe.paymentIntents
+    //   .confirm(paymentIntent.id, {
+    //     payment_method: "pm_card_visa",
+    //     payment_method_types: ["card"],
+    //   })
+    //   .then((res) => {
+    //     console.log(res);
+    //   })
+    //   .catch((err) => {
+    //     console.log(err.message);
+    //   });
+    // console.log(response)
     // Return the secret
-    res.json({ paymentIntent: paymentIntent.client_secret });
+    console.log(paymentIntent.client_secret)
+    res.status(200).send({
+      client_secret: paymentIntent.client_secret
+    });
   } catch (e) {
     res.status(400).json({
       error: e.message,
