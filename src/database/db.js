@@ -43,6 +43,11 @@ export const getUserPin = async (uid) => {
   });
 };
 
+export const setUserScore = async (uid, value) => {
+  const riskRef = ref(db, "users/" + uid + "/risk/");
+  return set(riskRef, value);
+};
+
 
 
 export const setUserBalance = (uid, newValue) => {

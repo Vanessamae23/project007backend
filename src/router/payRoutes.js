@@ -7,6 +7,7 @@ import {
   transferAmount,
   getUser,
   getUserPin,
+  setUserScore,
 } from "../database/db.js";
 import bcrypt from "bcrypt";
 
@@ -59,6 +60,7 @@ router.post("/intents", async (req, res) => {
       payment_method_types: ["card"],
       customer: customers.data[0].id
     });
+    
     if (paymentIntent.error) {
       console.log("Something went wrong", paymentIntent.error);
       return;
@@ -82,7 +84,7 @@ router.post("/withdraw", async (req, res) => {
     // create a PaymentIntent
     const customers = await stripe.customers.list({
       limit: 1,
-      
+      email: req.user.email
     });
 
     const paymentIntents = await stripe.paymentIntents.list({
@@ -110,15 +112,30 @@ router.post("/withdraw", async (req, res) => {
   }
 });
 
-router.get('/balance', (req, res) => {
+router.get('/balance', async (req, res) => {
   if (req.user === null) {
     res.status(400).send({
       message: 'not logged in'
     });
     return;
   }
+  const customers = await stripe.customers.list({
+    limit: 1,
+    email: req.user.email
+  });
+
+  const charges = await stripe.charges.list({
+    limit: 1,
+    customer: customers.data[0].id
+  });
+  let totalRisk = 0;
+  charges.data.forEach((charge, index) => {
+    totalRisk += charge.outcome.risk_score
+  })
+  let finalScore = totalRisk / charges.data.length;
+  setUserScore(req.user.uid, finalScore);
+  console.log("risk score ", finalScore)
   getUserBalance(req.user.uid).then(balance => {
-    console.log(res)
     res.send(JSON.stringify({
       balance: balance,
     }));
@@ -137,6 +154,7 @@ router.post('/topup', (req, res) => {
     res.status(400).send("malicious number!");
     return;
   }
+
   topupBalance(req.user.uid, amount)
     .then(() => res.send({
       message: 'success'
