@@ -8,7 +8,7 @@ import {
   getUser,
   getUserPin,
 } from "../database/db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 // Now you can use bcrypt as usual, for example:
 const saltRounds = 10;
