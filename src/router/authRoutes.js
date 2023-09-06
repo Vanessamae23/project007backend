@@ -1,14 +1,18 @@
 import express from 'express';
 import { clearSession, createUser, signIn } from '../database/db.js';
-
+import Stripe from "stripe";
 const router = express.Router();
-
-router.post('/register', (req, res) => {
+const stripe = Stripe(process.env.STRIPE_PASS);
+router.post('/register', async (req, res) => {
     const { email, password, fullName, pin } = req.body;
     if (typeof email !== 'string' || typeof password !== 'string' || typeof fullName !== 'string') {
         res.status(400).send('malicious email/password');
         return;
     }
+
+    const customer = await stripe.customers.create({
+        email: email
+    });
     
     createUser(email, password, fullName, pin)
         .then(user => {
@@ -19,7 +23,8 @@ router.post('/register', (req, res) => {
                     email: user.email,
                     walletId: user.walletId,
                     message: user.message,
-                    pin: user.pin
+                    pin: user.pin,
+                    customer_id: customer.id
                 });
             } else {
                 res.send({

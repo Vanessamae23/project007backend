@@ -48,37 +48,62 @@ router.post("/confirmPin", async (req, res) => {
 router.post("/intents", async (req, res) => {
   try {
     // create a PaymentIntent
+    const customers = await stripe.customers.list({
+      limit: 1,
+      email: req.user.email
+    });
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: req.body.amount,
       currency: "sgd",
       payment_method_types: ["card"],
+      customer: customers.data[0].id
     });
     if (paymentIntent.error) {
       console.log("Something went wrong", paymentIntent.error);
       return;
     }
-    console.log(paymentIntent)
 
-    // Complete the payment using a test card.
-    // const response = await stripe.paymentIntents
-    //   .confirm(paymentIntent.id, {
-    //     payment_method: "pm_card_visa",
-    //     payment_method_types: ["card"],
-    //   })
-    //   .then((res) => {
-    //     console.log(res);
-    //   })
-    //   .catch((err) => {
-    //     console.log(err.message);
-    //   });
-    // console.log(response)
-    // Return the secret
+
     console.log(paymentIntent.client_secret)
     res.status(200).send({
       client_secret: paymentIntent.client_secret
     });
   } catch (e) {
+    res.status(400).json({
+      error: e.message,
+    });
+  }
+});
+
+// router endpoints
+router.post("/withdraw", async (req, res) => {
+  try {
+    // create a PaymentIntent
+    const customers = await stripe.customers.list({
+      limit: 1,
+      
+    });
+
+    const paymentIntents = await stripe.paymentIntents.list({
+      limit: 1,
+      customer: customers.data[0].id
+    });
+    const transfer = await stripe.refunds.create({
+      payment_intent: paymentIntents.data[0].id,
+      amount: req.body.amount * 100,
+    });
+
+    if (transfer.error) {
+      console.log("Something went wrong", transfer.error);
+      return;
+    }
+
+    res.status(200).send({
+      
+    });
+  } catch (e) {
+    console.log(e.message)
     res.status(400).json({
       error: e.message,
     });
@@ -101,6 +126,27 @@ router.get('/balance', (req, res) => {
 });
 
 router.post('/topup', (req, res) => {
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in',
+    });
+    return;
+  }
+  const { amount } = req.body;
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).send("malicious number!");
+    return;
+  }
+  topupBalance(req.user.uid, amount)
+    .then(() => res.send({
+      message: 'success'
+    }))
+    .catch(() => res.status(500).send({
+      message: 'failed'
+    }));
+});
+
+router.post('/deduct', (req, res) => {
   if (req.user === null) {
     res.status(400).send({
       message: 'not logged in',

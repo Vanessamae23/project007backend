@@ -56,6 +56,12 @@ export const topupBalance = async (uid, amount) => {
   });
 };
 
+export const deductBalance = async (uid, amount) => {
+  return getUserBalance(uid).then((balance) => {
+    return setUserBalance(uid, balance - amount);
+  });
+};
+
 export const transferAmount = async (senderUid, receiverUid, amount) => {
   return topupBalance(senderUid, -amount)
     .then(() => topupBalance(receiverUid, amount));
