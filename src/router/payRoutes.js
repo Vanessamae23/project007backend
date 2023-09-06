@@ -93,6 +93,7 @@ router.get('/balance', (req, res) => {
     return;
   }
   getUserBalance(req.user.uid).then(balance => {
+    console.log(res)
     res.send(JSON.stringify({
       balance: balance,
     }));
