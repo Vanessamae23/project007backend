@@ -1,8 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
-import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo, update } from 'firebase/database';
+import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword, updateEmail, updatePassword } from 'firebase/auth';
 import dotenv from 'dotenv';
 import bcrypt from "bcrypt";
+import { getStorage } from 'firebase/storage';
+import { saveMediaToStorage } from "../storage/index.js";
 
 // Now you can use bcrypt as usual, for example:
 const saltRounds = 10;
@@ -22,6 +24,7 @@ const app = initializeApp({
 
 const db = getDatabase(app);
 const auth = getAuth(app);
+export const storage = getStorage(app);
 
 export const getUserBalance = async (uid) => {
   return get(child(ref(db), "balance/" + uid + "/value/")).then((snapshot) => {
@@ -106,6 +109,7 @@ const setupSession = (uid) => {
 export const signIn = async (email, password) => {
   return signInWithEmailAndPassword(auth, email, password)
     .then(async (res) => {
+      console.log('success signin')
       // setup balance for existing users
       get(child(ref(db), "balance/" + res.user.uid + "/value/")).then(
         (snapshot) => {
@@ -121,7 +125,10 @@ export const signIn = async (email, password) => {
           session: session,
         }));
     })
-    .catch(() => 'failed');
+    .catch(() => {
+      console.log('failed to sign in')
+      return 'failed'
+    });
 }
 
 async function checkWalletIdExists() {
@@ -163,7 +170,9 @@ export const createUser = async (email, password, fullName, pin) => {
         email: email,
         uid: credentials.user.uid,
         walletId : walletId,
-        hashed: hashedPass
+        hashed: hashedPass,
+        photoUrl: null,
+        phoneNumber: 'Not yet set'
       }
       const walletData = {
         [data.uid]: walletId,
@@ -234,3 +243,146 @@ export const getUserFrom = async (email, name) => {
       .then(snapshot => snapshot.val());
   }
 }
+
+export const saveUserProfileWImage = (fullName, email, phoneNumber, image, uid) => new Promise((resolve, reject) => {
+  saveMediaToStorage(image, `profileImage/${uid}`)
+      .then(async (downloadUrl) => {
+          const userRef = ref(db, "users/" + uid + "/");
+          const updatedFields = { 
+            fullName: fullName,
+            email: email,
+            phoneNumber: phoneNumber,
+            photoUrl: downloadUrl
+           };
+          get(userRef)
+            .then((snapshot) => {
+              if (snapshot.exists()) {
+                const existingData = snapshot.val();
+
+                const mergedData = {
+                  ...existingData,
+                  ...updatedFields
+
+                }
+
+                update(userRef, mergedData)
+                .then(() => {
+                  resolve({
+                    ...updatedFields,
+                    message: 'success',
+                    uid: uid
+                  })
+                })
+                .catch((error) => {
+                  // handle database update error
+                  console.error('Error updating user data:', error);
+                  reject('Error setting user data.')
+                });
+
+              } else {
+                reject('User data not found');
+              }
+            })
+            .catch((error) => {
+              console.error('Error fetching user data:', error);
+              reject('Error fetching user data.')
+            })
+      })
+      .catch((error) => {
+        // Handle the media storage error
+        console.error('Error uploading picture:', error);
+        reject('Error uploading picture.');
+      });
+});
+
+export const saveUserProfile = (fullName, email, phoneNumber, uid) => new Promise((resolve, reject) => {
+  const userRef = ref(db, "users/" + uid + "/");
+  const updatedFields = { 
+    fullName: fullName,
+    email: email,
+    phoneNumber: phoneNumber,
+    photoUrl: downloadUrl
+  };
+  get(userRef)
+  .then((snapshot) => {
+    if (snapshot.exists()) {
+      const existingData = snapshot.val();
+
+      const mergedData = {
+        ...existingData,
+        ...updatedFields
+
+      }
+
+      update(userRef, mergedData)
+      .then(() => {
+        resolve({
+          ...updatedFields,
+          message: 'success',
+          uid: uid
+        })
+      })
+      .catch((error) => {
+        // handle database update error
+        console.error('Error updating user data:', error);
+        reject('Error setting user data.')
+      });
+
+    } else {
+      reject('User data not found');
+    }
+  })
+  .catch((error) => {
+    console.error('Error fetching user data:', error);
+    reject('Error fetching user data.')
+  })
+});
+
+export const changeEmail = (currentEmail, password, newEmail)  => new Promise((resolve, reject) => {
+  signInWithEmailAndPassword(auth, currentEmail, password)
+    .then((credential) => {
+      updateEmail(credential.user, newEmail)
+      .then(() => {
+        const userRef = ref(db, "users/" + auth.currentUser.uid + "/");
+        const data = { email: newEmail };
+        update(userRef, data)
+          .then(() => {
+            console.log('Email updated in DB')
+          })
+          .catch((error) => {
+            console.log('Error updating email in DB:' + error)
+          })
+        resolve({
+          message: 'success',
+          newEmail: newEmail
+        })
+      }).catch((error) => {
+        console.log('Error updating email:'+ error)
+        reject('Error updating email')
+      })
+    })
+    .catch((error) => {
+      console.log('Error signing in: ' + error)
+    })
+});
+
+export const changePassword = (email, currentPassword, newPassword)  => new Promise((resolve, reject) => {
+  if (email != null) {
+    signInWithEmailAndPassword(auth, email, currentPassword)
+    .then((credential) => {
+      updatePassword(credential.user, newPassword)
+      .then(() => {
+        console.log('success')
+        resolve({
+          message: 'success',
+        })
+      }).catch((error) => {
+        console.log('Error updating password:'+ error)
+        reject('Error updating password')
+      })
+    })
+    .catch((error) => {
+      console.log('Error signing in: ' + error)
+    })
+  }
+})
