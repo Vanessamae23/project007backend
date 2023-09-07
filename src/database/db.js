@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
 import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import dotenv from 'dotenv';
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
 // Now you can use bcrypt as usual, for example:
 const saltRounds = 10;
