@@ -63,12 +63,12 @@ export const changeBalance = async (uid, amount) => {
 
 export const topupBalance = async (uid, amount) => {
   return changeBalance(uid, amount)
-    .then(() => addTransaction(uid, 'topup', null, amount));
+    .then(() => addTransaction(null, 'topup', uid, amount));
 };
 
 export const deductBalance = async (uid, amount) => {
-  return changeBalance(uid, amount)
-    .then(() => addTransaction(uid, 'topup', null, -amount));
+  return changeBalance(uid, -amount)
+    .then(() => addTransaction(uid, 'withdraw', null, amount));
 };
 
 export const transferAmount = async (senderUid, receiverUid, amount) => {
@@ -267,6 +267,9 @@ export const getTransactionsByUser = async (uid) => {
       ...receiverTransactions,
     };
 
+    // Sort transactions by timestamp (latest first)
+    const sortedTransactions = Object.values(combinedTransactions).sort((a, b) => b.timestamp - a.timestamp);
+
     // Fetch all user information at once
     const allUsersSnapshot = await get(ref(db, 'users/'));
     const allUsersInfo = allUsersSnapshot.val() || {};
@@ -282,11 +285,16 @@ export const getTransactionsByUser = async (uid) => {
     };
 
     // Return the transactions
-    return Object.values(combinedTransactions).map(transaction => {
+    return Object.values(sortedTransactions).map(transaction => {
+      let contact = null;
+      if (transaction.transactionType === 'transfer') {
+        contact = transaction.sender === uid ? getUserInfo(allUsersInfo[transaction.receiver]) : getUserInfo(allUsersInfo[transaction.sender]);
+      }
       return {
-        ...transaction,
-        senderInfo: getUserInfo(allUsersInfo[transaction.sender]),
-        receiverInfo: getUserInfo(allUsersInfo[transaction.receiver]),
+        transactionType: transaction.transactionType,
+        contact: contact,
+        amount: transaction.sender === uid ? -transaction.amount : transaction.amount,
+        timestamp: transaction.timestamp,
       };
     });
   } catch (error) {

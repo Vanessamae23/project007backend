@@ -259,7 +259,7 @@ router.post('/transfer', (req, res) => {
     });
 });
 
-router.get('/transaction', (req, res) => {
+router.get('/transactions', (req, res) => {
   if (req.user === null) {
     res.status(400).send({
       message: 'not logged in',
@@ -270,15 +270,7 @@ router.get('/transaction', (req, res) => {
     .then(transactions => {
       if (transactions) {
         res.send({
-          transactions: Object.values(transactions).map(transaction => ({
-            transactionType: transaction.transactionType,
-            sender: transaction.sender,
-            senderInfo: transaction.senderInfo,
-            receiver: transaction.receiver,
-            receiverInfo: transaction.receiverInfo,
-            amount: transaction.amount,
-            timestamp: transaction.timestamp,
-          })),
+          transactions: transactions,
         });
       } else {
         res.send({
