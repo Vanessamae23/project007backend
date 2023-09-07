@@ -8,6 +8,7 @@ import {
   getUser,
   getUserPin,
   setUserScore,
+  getTransactionsByUser,
 } from "../database/db.js";
 import bcrypt from "bcrypt";
 
@@ -20,26 +21,26 @@ const stripe = Stripe(process.env.STRIPE_PASS);
 
 router.post("/confirmPin", async (req, res) => {
   try {
-    const { session } = req.cookies; 
+    const { session } = req.cookies;
     const pin = req.body.pin;
-    
+
     await bcrypt.compare(pin, (await (getUserPin(req.user.uid))))
-       .then(result => {
+      .then(result => {
         if (!result) {
           return res.status(400).json({
             error: err.message,
           });
         }
-          res.send({
-            message: 'success'
-          })
-       })
-       .catch(err => {
+        res.send({
+          message: 'success'
+        })
+      })
+      .catch(err => {
         res.status(400).json({
           error: err.message,
         });
-       })
-  } catch(e) {
+      })
+  } catch (e) {
     res.status(400).json({
       error: e.message,
     });
@@ -228,7 +229,7 @@ router.post('/transfer', (req, res) => {
     });
     return;
   }
-  
+
   const { uid, amount } = req.body;
   if (typeof uid !== 'string') {
     res.status(400).send({
@@ -253,6 +254,35 @@ router.post('/transfer', (req, res) => {
       res.send({
         message: 'failed',
       })
+    });
+});
+
+router.get('/transaction', (req, res) => {
+  if (req.user === null) {
+    res.status(400).send({
+      message: 'not logged in',
+    });
+    return;
+  }
+  getTransactionsByUser(req.user.uid)
+    .then(transactions => {
+      if (transactions) {
+        res.send({
+          transactions: Object.values(transactions).map(transaction => ({
+            transactionType: transaction.transactionType,
+            sender: transaction.sender,
+            senderInfo: transaction.senderInfo,
+            receiver: transaction.receiver,
+            receiverInfo: transaction.receiverInfo,
+            amount: transaction.amount,
+            timestamp: transaction.timestamp,
+          })),
+        });
+      } else {
+        res.send({
+          transactions: [],
+        });
+      }
     });
 });
 
