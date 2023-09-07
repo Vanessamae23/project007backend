@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 router.post("/send", async (req, res) => {
   if (req.user === null) {
     res.status(400).send({
-      message: 'not logged in',
+      message: "not logged in",
     });
     return;
   }

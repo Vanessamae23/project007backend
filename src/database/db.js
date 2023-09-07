@@ -1,7 +1,24 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, child, get, ref, set, push, remove, orderByChild, startAt, endAt, query, equalTo } from 'firebase/database';
-import { signInWithEmailAndPassword, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import dotenv from 'dotenv';
+import { initializeApp } from "firebase/app";
+import {
+  getDatabase,
+  child,
+  get,
+  ref,
+  set,
+  push,
+  remove,
+  orderByChild,
+  startAt,
+  endAt,
+  query,
+  equalTo,
+} from "firebase/database";
+import {
+  signInWithEmailAndPassword,
+  getAuth,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 
 // Now you can use bcrypt as usual, for example:
@@ -23,6 +40,40 @@ const app = initializeApp({
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// Guardian
+export const setUserGuardianId = async (uid, guardianId, guardianPassword) => {
+  const guardianIdRef = ref(db, "users/" + uid + "/guardianId/");
+  const guardianPasswordRef = ref(db, "users/" + uid + "/guardianPassword/");
+  const hashedPass = await bcrypt.hash(guardianPassword, saltRounds);
+  return set(guardianIdRef, guardianId).then(() => {
+    set(guardianPasswordRef, hashedPass);
+  });
+};
+
+export const validateUserGuardianPassword = async (uid, password) => {
+  return get(child(ref(db), "users/" + uid + "/guardianPassword/")).then(
+    (snapshot) => {
+      if (snapshot.exists()) {
+        return bcrypt.compare(password, snapshot.val());
+      } else {
+        return false;
+      }
+    }
+  );
+};
+
+export const getUserGuardianId = async (uid) => {
+  return get(child(ref(db), "users/" + uid + "/guardianId/")).then(
+    (snapshot) => {
+      if (snapshot.exists()) {
+        return snapshot.val();
+      } else {
+        return 0;
+      }
+    }
+  );
+};
+
 export const getUserBalance = async (uid) => {
   return get(child(ref(db), "balance/" + uid + "/value/")).then((snapshot) => {
     if (snapshot.exists()) {
@@ -36,7 +87,27 @@ export const getUserBalance = async (uid) => {
 export const getUserPin = async (uid) => {
   return get(child(ref(db), "users/" + uid + "/hashed/")).then((snapshot) => {
     if (snapshot.exists()) {
-      return (snapshot.val());
+      return snapshot.val();
+    } else {
+      return 0;
+    }
+  });
+};
+
+export const getUserEmail = async (uid) => {
+  return get(child(ref(db), "users/" + uid + "/email/")).then((snapshot) => {
+    if (snapshot.exists()) {
+      return snapshot.val();
+    } else {
+      return 0;
+    }
+  });
+};
+
+export const getUserName = async (uid) => {
+  return get(child(ref(db), "users/" + uid + "/fullName/")).then((snapshot) => {
+    if (snapshot.exists()) {
+      return snapshot.val();
     } else {
       return 0;
     }
@@ -47,8 +118,6 @@ export const setUserScore = async (uid, value) => {
   const riskRef = ref(db, "users/" + uid + "/risk_score/");
   return set(riskRef, value);
 };
-
-
 
 export const setUserBalance = (uid, newValue) => {
   const balanceRef = ref(db, "balance/" + uid + "/value/");
@@ -62,20 +131,22 @@ export const changeBalance = async (uid, amount) => {
 };
 
 export const topupBalance = async (uid, amount) => {
-  return changeBalance(uid, amount)
-    .then(() => addTransaction(null, 'topup', uid, amount));
+  return changeBalance(uid, amount).then(() =>
+    addTransaction(null, "topup", uid, amount)
+  );
 };
 
 export const deductBalance = async (uid, amount) => {
-  return changeBalance(uid, -amount)
-    .then(() => addTransaction(uid, 'withdraw', null, amount));
+  return changeBalance(uid, -amount).then(() =>
+    addTransaction(uid, "withdraw", null, amount)
+  );
 };
 
 export const transferAmount = async (senderUid, receiverUid, amount) => {
   return changeBalance(senderUid, -amount)
     .then(() => changeBalance(receiverUid, amount))
-    .then(() => addTransaction(senderUid, 'transfer', receiverUid, amount));
-}
+    .then(() => addTransaction(senderUid, "transfer", receiverUid, amount));
+};
 
 export const getUserOTP = async (uid) => {
   return get(child(ref(db), "otp/" + uid + "/value/")).then((snapshot) => {
@@ -93,8 +164,9 @@ export const setUserOTP = (uid, newValue) => {
 };
 
 function randomString(length) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = "";
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
@@ -106,18 +178,18 @@ const generateWalletId = (digits) => {
   for (let i = 0; i < digits; i++) {
     uuid.push(Math.floor(Math.random() * 10));
   }
-  return uuid.join('');
-}
+  return uuid.join("");
+};
 
 const setupSession = (uid) => {
   const session = randomString(20);
   const expiry = 1000 * 3600 * 24; // one day
-  set(ref(db, 'sessions/' + session + '/'), {
+  set(ref(db, "sessions/" + session + "/"), {
     uid: uid,
     expiry: new Date().getTime() + expiry,
   });
   return session;
-}
+};
 
 export const signIn = async (email, password) => {
   return signInWithEmailAndPassword(auth, email, password)
@@ -128,20 +200,22 @@ export const signIn = async (email, password) => {
           if (!snapshot.exists()) {
             set(ref(db, "balance/" + res.user.uid + "/value/"), 0);
           }
-        });
+        }
+      );
       // setup session
       const session = setupSession(res.user.uid);
-      return get(child(ref(db), 'users/' + res.user.uid + '/'))
-        .then(snapshot => ({
+      return get(child(ref(db), "users/" + res.user.uid + "/")).then(
+        (snapshot) => ({
           ...snapshot.val(),
           session: session,
-        }));
+        })
+      );
     })
-    .catch(() => 'failed');
-}
+    .catch(() => "failed");
+};
 
 async function checkWalletIdExists() {
-  const walletSnapshot = await get(child(ref(db), 'wallet/'));
+  const walletSnapshot = await get(child(ref(db), "wallet/"));
 
   if (walletSnapshot.exists()) {
     walletId = generateWalletId(12);
@@ -151,10 +225,17 @@ async function checkWalletIdExists() {
   }
 }
 
-export const createUser = async (email, password, fullName, pin, account_id, account_link) => {
+export const createUser = async (
+  email,
+  password,
+  fullName,
+  pin,
+  account_id,
+  account_link
+) => {
   let walletId = generateWalletId(12);
-  //onsole.log(account_link)
-  let walletRef = ref(db, 'wallet/')
+
+  let walletRef = ref(db, "wallet/");
 
   // checkWalletIdExists()
   //   .then((res) => {
@@ -165,12 +246,9 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
   //     console.error("Error checking walletId:", err);
   //   });
 
-
-
   return createUserWithEmailAndPassword(auth, email, password)
     .then(async (credentials) => {
       const userRef = ref(db, "users/" + credentials.user.uid + "/");
-
 
       const hashedPass = await bcrypt.hash(pin, saltRounds);
 
@@ -186,10 +264,9 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
       const walletData = {
         [data.uid]: walletId,
       };
-      set(ref(db, "wallet/" + data.uid), walletData)
+      set(ref(db, "wallet/" + data.uid), walletData);
 
-      const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
-
+      const balanceRef = ref(db, "balance/" + credentials.user.uid, "/value/");
 
       const session = setupSession(credentials.user.uid);
       return set(userRef, data)
@@ -198,8 +275,8 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
           ...data,
           session: session,
           walletId: walletId,
-          message: 'success',
-          account_link: account_link
+          message: "success",
+          account_link: account_link,
         }));
     })
     .catch((e) => ({
@@ -208,20 +285,20 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
 };
 
 export const getUser = async (token) => {
-  return get(child(ref(db), 'sessions/' + token + '/'))
-    .then(snapshot => {
-      if (snapshot.exists()) {
-        if (new Date().getTime() > snapshot.val().expiry) {
-          remove(ref(db, 'sessions/' + token));
-          return null;
-        }
-        return get(child(ref(db), 'users/' + snapshot.val().uid + '/'))
-          .then(snapshot => snapshot.val());
-      } else {
+  return get(child(ref(db), "sessions/" + token + "/")).then((snapshot) => {
+    if (snapshot.exists()) {
+      if (new Date().getTime() > snapshot.val().expiry) {
+        remove(ref(db, "sessions/" + token));
         return null;
       }
-    });
-}
+      return get(child(ref(db), "users/" + snapshot.val().uid + "/")).then(
+        (snapshot) => snapshot.val()
+      );
+    } else {
+      return null;
+    }
+  });
+};
 
 export const confirmPin = async (pin, uid) => {
   return bcrypt.compare(pin, await getUserPin(uid))
@@ -242,38 +319,43 @@ export const confirmPin = async (pin, uid) => {
 }
 
 export const clearSession = async (session) => {
-  const userNode = ref(db, 'sessions/' + session, '/');
-  return remove(userNode)
-    .then(() => ({
-      message: 'success',
-    }));
-}
+  const userNode = ref(db, "sessions/" + session, "/");
+  return remove(userNode).then(() => ({
+    message: "success",
+  }));
+};
 
 export const getUserFrom = async (email, name) => {
   if (email !== undefined) {
-    return get(query(
-      ref(db, 'users/'),
-      orderByChild('email'),
-      startAt(email),
-      endAt(email + "\uf8ff"),
-    ))
-      .then(snapshot => snapshot.val());
+    return get(
+      query(
+        ref(db, "users/"),
+        orderByChild("email"),
+        startAt(email),
+        endAt(email + "\uf8ff")
+      )
+    ).then((snapshot) => snapshot.val());
   } else {
-    return get(query(
-      ref(db, 'users/'),
-      orderByChild('fullName'),
-      startAt(name),
-      endAt(name + "\uf8ff"),
-    ))
-      .then(snapshot => snapshot.val());
+    return get(
+      query(
+        ref(db, "users/"),
+        orderByChild("fullName"),
+        startAt(name),
+        endAt(name + "\uf8ff")
+      )
+    ).then((snapshot) => snapshot.val());
   }
-}
+};
 
 export const getTransactionsByUser = async (uid) => {
   try {
     // Get transactions where the user is the sender or the receiver
-    const senderTransactionsSnapshot = await get(query(ref(db, 'transaction/'), orderByChild('sender'), equalTo(uid)));
-    const receiverTransactionsSnapshot = await get(query(ref(db, 'transaction/'), orderByChild('receiver'), equalTo(uid)));
+    const senderTransactionsSnapshot = await get(
+      query(ref(db, "transaction/"), orderByChild("sender"), equalTo(uid))
+    );
+    const receiverTransactionsSnapshot = await get(
+      query(ref(db, "transaction/"), orderByChild("receiver"), equalTo(uid))
+    );
 
     // Convert snapshots to objects
     const senderTransactions = senderTransactionsSnapshot.val() || {};
@@ -286,10 +368,12 @@ export const getTransactionsByUser = async (uid) => {
     };
 
     // Sort transactions by timestamp (latest first)
-    const sortedTransactions = Object.values(combinedTransactions).sort((a, b) => b.timestamp - a.timestamp);
+    const sortedTransactions = Object.values(combinedTransactions).sort(
+      (a, b) => b.timestamp - a.timestamp
+    );
 
     // Fetch all user information at once
-    const allUsersSnapshot = await get(ref(db, 'users/'));
+    const allUsersSnapshot = await get(ref(db, "users/"));
     const allUsersInfo = allUsersSnapshot.val() || {};
 
     // Function to get necessary user info fields
@@ -311,7 +395,8 @@ export const getTransactionsByUser = async (uid) => {
       return {
         transactionType: transaction.transactionType,
         contact: contact,
-        amount: transaction.sender === uid ? -transaction.amount : transaction.amount,
+        amount:
+          transaction.sender === uid ? -transaction.amount : transaction.amount,
         timestamp: transaction.timestamp,
       };
     });
@@ -321,8 +406,13 @@ export const getTransactionsByUser = async (uid) => {
   }
 };
 
-export const addTransaction = async (senderUid, transactionType, receiverUid, amount) => {
-  const transactionRef = ref(db, 'transaction/');
+export const addTransaction = async (
+  senderUid,
+  transactionType,
+  receiverUid,
+  amount
+) => {
+  const transactionRef = ref(db, "transaction/");
   const newTransactionRef = push(transactionRef);
   const timestamp = new Date().getTime();
   return set(newTransactionRef, {
