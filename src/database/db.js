@@ -55,21 +55,26 @@ export const setUserBalance = (uid, newValue) => {
   return set(balanceRef, newValue);
 };
 
-export const topupBalance = async (uid, amount) => {
+export const changeBalance = async (uid, amount) => {
   return getUserBalance(uid).then((balance) => {
     return setUserBalance(uid, balance + amount);
   });
 };
 
+export const topupBalance = async (uid, amount) => {
+  return changeBalance(uid, amount)
+    .then(() => addTransaction(uid, 'topup', null, amount));
+};
+
 export const deductBalance = async (uid, amount) => {
-  return getUserBalance(uid).then((balance) => {
-    return setUserBalance(uid, balance - amount);
-  });
+  return changeBalance(uid, amount)
+    .then(() => addTransaction(uid, 'topup', null, -amount));
 };
 
 export const transferAmount = async (senderUid, receiverUid, amount) => {
-  return topupBalance(senderUid, -amount)
-    .then(() => topupBalance(receiverUid, amount));
+  return changeBalance(senderUid, -amount)
+    .then(() => changeBalance(receiverUid, amount))
+    .then(() => addTransaction(senderUid, 'transfer', receiverUid, amount));
 }
 
 export const getUserOTP = async (uid) => {
@@ -99,7 +104,7 @@ function randomString(length) {
 const generateWalletId = (digits) => {
   let uuid = [];
   for (let i = 0; i < digits; i++) {
-      uuid.push(Math.floor(Math.random() * 10));
+    uuid.push(Math.floor(Math.random() * 10));
   }
   return uuid.join('');
 }
@@ -136,14 +141,14 @@ export const signIn = async (email, password) => {
 }
 
 async function checkWalletIdExists() {
-    const walletSnapshot = await get(child(ref(db), 'wallet/'));
+  const walletSnapshot = await get(child(ref(db), 'wallet/'));
 
-    if (walletSnapshot.exists()) {
-      walletId = generateWalletId(12);
-      await checkWalletIdExists(); // Recursive call to check the new walletId
-    } else {
-      return walletId;
-    }
+  if (walletSnapshot.exists()) {
+    walletId = generateWalletId(12);
+    await checkWalletIdExists(); // Recursive call to check the new walletId
+  } else {
+    return walletId;
+  }
 }
 
 export const createUser = async (email, password, fullName, pin, account_id, account_link) => {
@@ -160,34 +165,32 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
   //     console.error("Error checking walletId:", err);
   //   });
 
-    
+
 
   return createUserWithEmailAndPassword(auth, email, password)
     .then(async (credentials) => {
       const userRef = ref(db, "users/" + credentials.user.uid + "/");
-      
-      
+
+
       const hashedPass = await bcrypt.hash(pin, saltRounds);
 
       const data = {
         fullName: fullName,
         email: email,
         uid: credentials.user.uid,
-        walletId : walletId,
-        hashed: hashedPass,
-        account_id: account_id
+        walletId: walletId,
+        hashed: hashedPass
       }
       const walletData = {
         [data.uid]: walletId,
       };
-      
       set(ref(db, "wallet/" + data.uid), walletData).then((res) => {
         console.log(res)
       }).catch((err) => console.log(err))
-      
+
       const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
 
-      
+
       const session = setupSession(credentials.user.uid);
       return set(userRef, data)
         .then(() => set(balanceRef, 0))
@@ -231,9 +234,9 @@ export const clearSession = async (session) => {
 export const getUserFrom = async (email, name) => {
   if (email !== undefined) {
     return get(query(
-      ref(db, 'users/'), 
-      orderByChild('email'), 
-      startAt(email), 
+      ref(db, 'users/'),
+      orderByChild('email'),
+      startAt(email),
       endAt(email + "\uf8ff"),
     ))
       .then(snapshot => snapshot.val());
@@ -247,3 +250,60 @@ export const getUserFrom = async (email, name) => {
       .then(snapshot => snapshot.val());
   }
 }
+
+export const getTransactionsByUser = async (uid) => {
+  try {
+    // Get transactions where the user is the sender or the receiver
+    const senderTransactionsSnapshot = await get(query(ref(db, 'transaction/'), orderByChild('sender'), equalTo(uid)));
+    const receiverTransactionsSnapshot = await get(query(ref(db, 'transaction/'), orderByChild('receiver'), equalTo(uid)));
+
+    // Convert snapshots to objects
+    const senderTransactions = senderTransactionsSnapshot.val() || {};
+    const receiverTransactions = receiverTransactionsSnapshot.val() || {};
+
+    // Combine sender and receiver transactions
+    const combinedTransactions = {
+      ...senderTransactions,
+      ...receiverTransactions,
+    };
+
+    // Fetch all user information at once
+    const allUsersSnapshot = await get(ref(db, 'users/'));
+    const allUsersInfo = allUsersSnapshot.val() || {};
+
+    // Function to get necessary user info fields
+    const getUserInfo = (user) => {
+      if (!user) return null;
+      return {
+        email: user.email,
+        fullName: user.fullName,
+        walletId: user.walletId,
+      };
+    };
+
+    // Return the transactions
+    return Object.values(combinedTransactions).map(transaction => {
+      return {
+        ...transaction,
+        senderInfo: getUserInfo(allUsersInfo[transaction.sender]),
+        receiverInfo: getUserInfo(allUsersInfo[transaction.receiver]),
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    throw error;
+  }
+};
+
+export const addTransaction = async (senderUid, transactionType, receiverUid, amount) => {
+  const transactionRef = ref(db, 'transaction/');
+  const newTransactionRef = push(transactionRef);
+  const timestamp = new Date().getTime();
+  return set(newTransactionRef, {
+    amount: amount,
+    receiver: receiverUid,
+    timestamp: timestamp,
+    transactionType: transactionType,
+    sender: senderUid,
+  });
+};
