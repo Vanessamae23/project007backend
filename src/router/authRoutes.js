@@ -13,18 +13,40 @@ router.post('/register', async (req, res) => {
     const customer = await stripe.customers.create({
         email: email
     });
+
+        const account = await stripe.accounts.create({
+      type: 'express',
+      country: 'SG',
+      capabilities: {
+        card_payments: {
+          requested: true,
+        },
+        transfers: {
+          requested: true,
+        },
+      },
+    });
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: 'https://example.com/reauth',
+      return_url: 'https://example.com/return',
+      type: 'account_onboarding',
+    });
     
-    createUser(email, password, fullName, pin)
+    createUser(email, password, fullName, pin, account.id, accountLink.url)
         .then(user => {
             if (user.message === 'success') {
                 res.cookie('session', user.session);
+                console.log(accountLink.url)
                 res.send({
                     fullName: user.fullName,
                     email: user.email,
                     walletId: user.walletId,
                     message: user.message,
                     pin: user.pin,
-                    customer_id: customer.id
+                    customer_id: customer.id,
+                    account_id: user.account_id,
+                    account_link: accountLink.url
                 });
             } else {
                 res.send({
@@ -49,6 +71,7 @@ router.post('/login', (req, res) => {
                     email: userInfo.email,
                     walletId: userInfo.walletId,
                     fullName: userInfo.fullName,
+                    account_id: userInfo.account_id ? userInfo.account_id : ""
                 });
             } else {
                 res.send({

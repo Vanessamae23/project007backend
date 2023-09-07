@@ -146,9 +146,9 @@ async function checkWalletIdExists() {
     }
 }
 
-export const createUser = async (email, password, fullName, pin) => {
+export const createUser = async (email, password, fullName, pin, account_id, account_link) => {
   let walletId = generateWalletId(12);
-
+  //onsole.log(account_link)
   let walletRef = ref(db, 'wallet/')
 
   // checkWalletIdExists()
@@ -174,12 +174,13 @@ export const createUser = async (email, password, fullName, pin) => {
         email: email,
         uid: credentials.user.uid,
         walletId : walletId,
-        hashed: hashedPass
+        hashed: hashedPass,
+        account_id: account_id
       }
       const walletData = {
         [data.uid]: walletId,
       };
-  
+      
       set(ref(db, "wallet/" + data.uid), walletData).then((res) => {
         console.log(res)
       }).catch((err) => console.log(err))
@@ -195,6 +196,7 @@ export const createUser = async (email, password, fullName, pin) => {
           session: session,
           walletId: walletId,
           message: 'success',
+          account_link: account_link
         }));
     })
     .catch((e) => ({

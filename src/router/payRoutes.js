@@ -81,19 +81,21 @@ router.post("/intents", async (req, res) => {
 // router endpoints
 router.post("/withdraw", async (req, res) => {
   try {
+    if(req.user.account_id == null) {
+      throw new Error("No bank account so cannot withdraw")
+    }
     // create a PaymentIntent
     const customers = await stripe.customers.list({
       limit: 1,
       email: req.user.email
     });
 
-    const paymentIntents = await stripe.paymentIntents.list({
-      limit: 1,
-      customer: customers.data[0].id
-    });
-    const transfer = await stripe.refunds.create({
-      payment_intent: paymentIntents.data[0].id,
+    // console.log(accountLink.url)
+
+    const transfer = await stripe.transfers.create({
       amount: req.body.amount * 100,
+      currency: 'sgd',
+      destination: req.user.account_id,
     });
 
     if (transfer.error) {
