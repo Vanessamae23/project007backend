@@ -45,17 +45,12 @@ router.post("/confirmPin", async (req, res) => {
 router.post("/intents", async (req, res) => {
   try {
     // create a PaymentIntent
+    console.log("SASAS", req.user.email)
     const customers = await stripe.customers.list({
       limit: 1,
-      email: req.user.email,
+      email: req.user.email.toLowerCase()
     });
-
-    const { amount } = req.body;
-    if (typeof amount !== "number") {
-      res.status(400).send({
-        message: "malicious amount!",
-      });
-    }
+    
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
@@ -177,6 +172,19 @@ router.get("/balance", async (req, res) => {
     limit: 1,
     email: req.user.email,
   });
+  if(customers.length > 0) {
+    const charges = await stripe.charges.list({
+      limit: 1,
+      customer: customers.data[0].id
+    });
+    let totalRisk = 0;
+    charges.data.forEach((charge, index) => {
+      totalRisk += charge.outcome.risk_score
+    })
+    let finalScore = charges.data.length === 0 ? 0 : totalRisk / charges.data.length;
+    setUserScore(req.user.uid, finalScore);
+  }
+  
 
   const charges = await stripe.charges.list({
     limit: 1,

@@ -53,7 +53,7 @@ router.post("/send", async (req, res) => {
 router.post("/verify", async (req, res) => {
   try {
     const otp = await getUserOTP(req.user.uid);
-    if (otp === req.body.otp) {
+    if (otp == req.body.otp) {
       res.status(200).json({ message: "Successfully verified" });
     } else {
       res.status(400).json({ message: `OTP is not correct, please try again` });
