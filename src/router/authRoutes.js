@@ -153,7 +153,7 @@ router.post("/set-guardian", async (req, res) => {
   }
 
   const guardianId = await getUserGuardianId(req.user.uid);
-  if (guardianId !== 0) {
+  if (guardianId !== "") {
     const result = await validateUserGuardianPassword(
       req.user.uid,
       req.body.password
