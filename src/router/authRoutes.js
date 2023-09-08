@@ -9,7 +9,6 @@ import {
   getUserName,
 } from "../database/db.js";
 import Stripe from "stripe";
-import e from "express";
 const router = express.Router();
 const stripe = Stripe(process.env.STRIPE_PASS);
 router.post("/register", async (req, res) => {
