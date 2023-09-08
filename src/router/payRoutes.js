@@ -248,17 +248,26 @@ router.post('/transfer', (req, res) => {
     return;
   }
 
-  transferAmount(req.user.uid, uid, amount)
-    .then(() => {
-      res.send({
-        message: 'success',
+  // Check if the user has enough balance
+  getUserBalance(req.user.uid).then(balance => {
+    if (balance < amount) {
+      res.status(400).send({
+        message: 'not enough balance!',
       });
-    })
-    .catch(() => {
-      res.send({
-        message: 'failed',
+      return;
+    }
+    transferAmount(req.user.uid, uid, amount)
+      .then(() => {
+        res.send({
+          message: 'success',
+        });
       })
-    });
+      .catch(() => {
+        res.send({
+          message: 'failed',
+        })
+      });
+  });
 });
 
 router.get('/transactions', (req, res) => {
