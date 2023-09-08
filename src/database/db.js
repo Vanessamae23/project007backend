@@ -44,7 +44,7 @@ export const getUserPin = async (uid) => {
 };
 
 export const setUserScore = async (uid, value) => {
-  const riskRef = ref(db, "users/" + uid + "/risk/");
+  const riskRef = ref(db, "users/" + uid + "/risk_score/");
   return set(riskRef, value);
 };
 
