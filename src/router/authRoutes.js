@@ -9,7 +9,10 @@ router.post('/register', async (req, res) => {
         res.status(400).send('malicious email/password');
         return;
     }
-
+    
+    const customer = await stripe.customers.create({
+        email: email
+    });
     
     const account = await stripe.accounts.create({
       type: 'express',
@@ -41,6 +44,7 @@ router.post('/register', async (req, res) => {
                     walletId: user.walletId,
                     message: user.message,
                     pin: user.pin,
+                    customer_id: customer.id,
                     account_id: user.account_id,
                     account_link: accountLink.url
                 });
