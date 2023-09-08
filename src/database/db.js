@@ -187,9 +187,7 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
       const walletData = {
         [data.uid]: walletId,
       };
-      set(ref(db, "wallet/" + data.uid), walletData).then((res) => {
-        console.log(res)
-      }).catch((err) => console.log(err))
+      set(ref(db, "wallet/" + data.uid), walletData)
 
       const balanceRef = ref(db, 'balance/' + credentials.user.uid, '/value/')
 
@@ -224,6 +222,24 @@ export const getUser = async (token) => {
         return null;
       }
     });
+}
+
+export const confirmPin = async (pin, uid) => {
+  return bcrypt.compare(pin, await getUserPin(uid))
+    .then(res => {
+      if (!res) {
+        return {
+          message: 'wrong PIN',
+        }
+      } else {
+        return {
+          message: 'success'
+        }
+      }
+    })
+    .catch(e => ({
+      message: e.message,
+    }));
 }
 
 export const clearSession = async (session) => {

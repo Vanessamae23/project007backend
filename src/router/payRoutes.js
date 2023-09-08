@@ -5,7 +5,7 @@ import {
   topupBalance,
   getUserFrom,
   transferAmount,
-  getUser,
+  confirmPin,
   getUserPin,
   setUserScore,
   getTransactionsByUser,
@@ -21,31 +21,13 @@ const router = express.Router();
 const stripe = Stripe(process.env.STRIPE_PASS);
 
 router.post("/confirmPin", async (req, res) => {
-  try {
-    const { session } = req.cookies;
-    const pin = req.body.pin;
+  const pin = req.body.pin;
+  if (typeof pin !== 'string' && typeof pin !== 'number') {
+    res.status(400).send("malicious PIN!");
+    return;
+  }
 
-    await bcrypt.compare(pin, (await (getUserPin(req.user.uid))))
-      .then(result => {
-        if (!result) {
-          return res.status(400).json({
-            error: err.message,
-          });
-        }
-        res.send({
-          message: 'success'
-        })
-      })
-      .catch(err => {
-        res.status(400).json({
-          error: err.message,
-        });
-      })
-  } catch (e) {
-    res.status(400).json({
-      error: e.message,
-    });
-  };
+  confirmPin(pin.toString(), req.user.uid).then(feedback => res.send(feedback));
 })
 // router endpoints
 router.post("/intents", async (req, res) => {
@@ -55,17 +37,25 @@ router.post("/intents", async (req, res) => {
       limit: 1,
       email: req.user.email
     });
+
+    const { amount } = req.body;
+    if (typeof amount !== 'number') {
+      res.status(400).send({
+        message: "malicious amount!",
+      })
+    }
     
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: req.body.amount,
+      amount: amount,
       currency: "sgd",
       payment_method_types: ["card"],
       customer: customers.data[0].id
     });
     
     if (paymentIntent.error) {
-      console.log("Something went wrong", paymentIntent.error);
-      return;
+      res.status(500).send({
+        message: "Something went wrong " + paymentIntent.error
+      });
     }
 
 
@@ -83,8 +73,24 @@ router.post("/intents", async (req, res) => {
 // router endpoints
 router.post("/withdraw", async (req, res) => {
   try {
+    if (req.user === null) {
+      res.status(400).send("not logged in");
+      return;
+    }
     if (req.user.account_id == null) {
-      throw new Error("No bank account so cannot withdraw")
+      res.status(400).send({
+        message: "No bank account so cannot withdraw",
+      });
+      return;
+    }
+    const { amount, pin } = req.body;
+    if (typeof amount !== "number" || amount <= 0) {
+      res.status(400).send("malicious number!");
+      return;
+    }
+    if (typeof pin !== 'string' && typeof pin !== 'number') {
+      res.status(400).send("malicious PIN!");
+      return;
     }
     // create a PaymentIntent
     const customers = await stripe.customers.list({
@@ -92,27 +98,35 @@ router.post("/withdraw", async (req, res) => {
       email: req.user.email
     });
 
-    // console.log(accountLink.url)
-
     const transfer = await stripe.transfers.create({
-      amount: req.body.amount * 100,
+      amount: amount * 100,
       currency: 'sgd',
       destination: req.user.account_id,
     });
 
     if (transfer.error) {
-      console.log("Something went wrong", transfer.error);
+      res.status(500).send({
+        message: "Something went wrong" + transfer.error,
+      });
       return;
     }
-
-    res.status(200).send({
-      
+    confirmPin(pin.toString(), req.user.uid).then(feedback => {
+      if (feedback.message === 'success') {
+        deductBalance(req.user.uid, amount)
+          .then(() => res.send({
+            message: 'success'
+          }))
+          .catch(() => res.status(500).send({
+            message: 'failed'
+          }));
+      } else {
+        res.send(feedback);
+      }
     });
   } catch (e) {
-    console.log(e.message)
-    res.status(400).json({
-      error: e.message,
-    });
+    res.status(400).send({
+      message: e.message,
+    })
   }
 });
 
@@ -140,9 +154,9 @@ router.get('/balance', async (req, res) => {
   setUserScore(req.user.uid, finalScore);
   console.log("risk score ", finalScore)
   getUserBalance(req.user.uid).then(balance => {
-    res.send(JSON.stringify({
+    res.send({
       balance: balance,
-    }));
+    });
   })
 });
 
@@ -153,19 +167,29 @@ router.post('/topup', (req, res) => {
     });
     return;
   }
-  const { amount } = req.body;
+  const { amount, pin } = req.body;
   if (typeof amount !== "number" || amount <= 0) {
     res.status(400).send("malicious number!");
     return;
   }
+  if (typeof pin !== 'string' && typeof pin !== 'number') {
+    res.status(400).send("malicious PIN!");
+    return;
+  }
 
-  topupBalance(req.user.uid, amount)
-    .then(() => res.send({
-      message: 'success'
-    }))
-    .catch(() => res.status(500).send({
-      message: 'failed'
-    }));
+  confirmPin(pin.toString(), req.user.uid).then(feedback => {
+    if (feedback.message !== 'success') {
+      res.send(feedback);
+      return;
+    }
+    topupBalance(req.user.uid, amount)
+      .then(() => res.send({
+        message: 'success'
+      }))
+      .catch(() => res.status(500).send({
+        message: 'failed'
+      }));
+  })
 });
 
 router.post('/deduct', (req, res) => {
@@ -175,18 +199,7 @@ router.post('/deduct', (req, res) => {
     });
     return;
   }
-  const { amount } = req.body;
-  if (typeof amount !== "number" || amount <= 0) {
-    res.status(400).send("malicious number!");
-    return;
-  }
-  deductBalance(req.user.uid, amount)
-    .then(() => res.send({
-      message: 'success'
-    }))
-    .catch(() => res.status(500).send({
-      message: 'failed'
-    }));
+  
 });
 
 router.get('/find-users', (req, res) => {
@@ -234,7 +247,7 @@ router.post('/transfer', (req, res) => {
     return;
   }
 
-  const { uid, amount } = req.body;
+  const { uid, amount, pin } = req.body;
   if (typeof uid !== 'string') {
     res.status(400).send({
       message: 'malicious uid!',
@@ -247,26 +260,37 @@ router.post('/transfer', (req, res) => {
     });
     return;
   }
+  if (typeof pin !== 'string' && typeof pin !== 'number') {
+    res.status(400).send({
+      message: "malicious PIN!",
+    });
+    return;
+  }
 
-  // Check if the user has enough balance
-  getUserBalance(req.user.uid).then(balance => {
-    if (balance < amount) {
-      res.status(400).send({
-        message: 'not enough balance!',
+  confirmPin(pin.toString(), req.user.uid).then(feedback => {
+    if (feedback.message === 'success') {
+      getUserBalance(req.user.uid).then(balance => {
+        if (balance < amount) {
+          res.status(400).send({
+            message: 'not enough balance!',
+          });
+          return;
+        }
+        transferAmount(req.user.uid, uid, amount)
+          .then(() => {
+            res.send({
+              message: 'success',
+            });
+          })
+          .catch(() => {
+            res.send({
+              message: 'failed',
+            })
+          });
       });
-      return;
+    } else {
+      res.send(feedback);
     }
-    transferAmount(req.user.uid, uid, amount)
-      .then(() => {
-        res.send({
-          message: 'success',
-        });
-      })
-      .catch(() => {
-        res.send({
-          message: 'failed',
-        })
-      });
   });
 });
 
