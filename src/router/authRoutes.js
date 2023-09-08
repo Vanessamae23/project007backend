@@ -6,6 +6,7 @@ import {
   setUserGuardianId,
   getUserGuardianId,
   validateUserGuardianPassword,
+  getUserName,
 } from "../database/db.js";
 import Stripe from "stripe";
 import e from "express";
@@ -122,7 +123,7 @@ router.get("/is-logged-in", (req, res) => {
   });
 });
 
-router.get("/is-guardian", async (req, res) => {
+router.get("/is-guarded", async (req, res) => {
   if (req.user === null) {
     res.status(400).send({
       message: "not logged in",
@@ -130,14 +131,15 @@ router.get("/is-guardian", async (req, res) => {
     return;
   }
   const guardianId = await getUserGuardianId(req.user.uid);
+  const guadianName = await getUserName(guardianId);
   if (guardianId === 0) {
     res.status(200).send({
-      message: "not guardian",
+      message: "",
     });
     return;
   } else {
     res.status(200).send({
-      message: "is guardian",
+      message: guadianName,
     });
     return;
   }
