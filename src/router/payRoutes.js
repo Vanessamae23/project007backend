@@ -9,6 +9,7 @@ import {
   getUserPin,
   setUserScore,
   getTransactionsByUser,
+  deductBalance,
 } from "../database/db.js";
 import bcrypt from "bcrypt";
 
@@ -82,7 +83,7 @@ router.post("/intents", async (req, res) => {
 // router endpoints
 router.post("/withdraw", async (req, res) => {
   try {
-    if(req.user.account_id == null) {
+    if (req.user.account_id == null) {
       throw new Error("No bank account so cannot withdraw")
     }
     // create a PaymentIntent
@@ -135,7 +136,7 @@ router.get('/balance', async (req, res) => {
   charges.data.forEach((charge, index) => {
     totalRisk += charge.outcome.risk_score
   })
-  let finalScore = totalRisk / charges.data.length;
+  let finalScore = charges.data.length === 0 ? 0 : totalRisk / charges.data.length;
   setUserScore(req.user.uid, finalScore);
   console.log("risk score ", finalScore)
   getUserBalance(req.user.uid).then(balance => {
@@ -179,7 +180,7 @@ router.post('/deduct', (req, res) => {
     res.status(400).send("malicious number!");
     return;
   }
-  topupBalance(req.user.uid, amount)
+  deductBalance(req.user.uid, amount)
     .then(() => res.send({
       message: 'success'
     }))
