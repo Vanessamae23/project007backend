@@ -79,7 +79,6 @@ export const transferAmount = async (senderUid, receiverUid, amount) => {
 
 export const getUserOTP = async (uid) => {
   return get(child(ref(db), "otp/" + uid + "/value/")).then((snapshot) => {
-    console.log(uid)
     if (snapshot.exists()) {
       return snapshot.val();
     } else {

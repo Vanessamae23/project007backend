@@ -58,8 +58,6 @@ router.post("/intents", async (req, res) => {
       });
     }
 
-
-    console.log(paymentIntent.client_secret)
     res.status(200).send({
       client_secret: paymentIntent.client_secret
     });
@@ -157,7 +155,6 @@ router.get('/balance', async (req, res) => {
   })
   let finalScore = charges.data.length === 0 ? 0 : totalRisk / charges.data.length;
   setUserScore(req.user.uid, finalScore);
-  console.log("risk score ", finalScore)
   getUserBalance(req.user.uid).then(balance => {
     res.send({
       balance: balance,

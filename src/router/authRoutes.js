@@ -37,7 +37,6 @@ router.post('/register', async (req, res) => {
         .then(user => {
             if (user.message === 'success') {
                 res.cookie('session', user.session);
-                console.log(accountLink.url)
                 res.send({
                     fullName: user.fullName,
                     email: user.email,
