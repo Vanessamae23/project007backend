@@ -215,6 +215,7 @@ router.get('/find-users', (req, res) => {
           email: user.email,
           name: user.fullName,
           uid: user.uid,
+          risk: user.risk_score
         })),
       });
     } else {

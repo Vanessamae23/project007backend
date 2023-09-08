@@ -79,6 +79,7 @@ export const transferAmount = async (senderUid, receiverUid, amount) => {
 
 export const getUserOTP = async (uid) => {
   return get(child(ref(db), "otp/" + uid + "/value/")).then((snapshot) => {
+    console.log(uid)
     if (snapshot.exists()) {
       return snapshot.val();
     } else {
@@ -181,7 +182,7 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
         walletId: walletId,
         hashed: hashedPass,
         account_id: account_id,
-        risk: 0,
+        risk_score: 0,
       }
       const walletData = {
         [data.uid]: walletId,

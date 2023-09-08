@@ -103,6 +103,7 @@ router.get('/logout', (req, res) => {
 router.get('/is-logged-in', (req, res) => {
     res.send({
         status: req.user !== null,
+        user: req.user
     });
 })
 
