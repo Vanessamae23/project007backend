@@ -92,6 +92,11 @@ router.post("/withdraw", async (req, res) => {
       res.status(400).send("malicious PIN!");
       return;
     }
+    const balance = await getUserBalance(req.user.uid);
+    if (balance < amount) {
+      res.status(400).send("not enough balance!");
+      return;
+    }
     // create a PaymentIntent
     const customers = await stripe.customers.list({
       limit: 1,
@@ -190,16 +195,6 @@ router.post('/topup', (req, res) => {
         message: 'failed'
       }));
   })
-});
-
-router.post('/deduct', (req, res) => {
-  if (req.user === null) {
-    res.status(400).send({
-      message: 'not logged in',
-    });
-    return;
-  }
-  
 });
 
 router.get('/find-users', (req, res) => {
