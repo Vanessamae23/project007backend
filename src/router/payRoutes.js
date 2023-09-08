@@ -131,7 +131,7 @@ router.post("/withdraw", async (req, res) => {
           .then(async () => {
             const guardianId = await getUserGuardianId(req.user.uid);
             const guardianEmail = await getUserEmail(guardianId);
-            if (guardianId != 0 && guardianEmail != 0) {
+            if (guardianId && guardianEmail) {
               const info = await transporter.sendMail({
                 from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
                 to: guardianEmail,
@@ -222,7 +222,7 @@ router.post("/topup", (req, res) => {
       .then(async () => {
         const guardianId = await getUserGuardianId(req.user.uid);
         const guardianEmail = await getUserEmail(guardianId);
-        if (guardianId != 0 && guardianEmail != 0) {
+        if (guardianId && guardianEmail) {
           const info = await transporter.sendMail({
             from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
             to: guardianEmail,
@@ -328,7 +328,7 @@ router.post("/transfer", (req, res) => {
             const guardianId = await getUserGuardianId(req.user.uid);
             const guardianEmail = await getUserEmail(guardianId);
             const recieverName = await getUserName(uid);
-            if (guardianId != 0 && guardianEmail != 0 && recieverName != 0) {
+            if (guardianId && guardianEmail && recieverName) {
               const info = await transporter.sendMail({
                 from: '"TiKTok Hackathon" <tiktok.hackathon@gmail.com>',
                 to: guardianEmail,

@@ -37,9 +37,6 @@ router.post("/register", async (req, res) => {
         requested: true,
       },
     },
-    transfers: {
-      requested: true,
-    },
   });
   const accountLink = await stripe.accountLinks.create({
     account: account.id,
@@ -131,7 +128,7 @@ router.get("/is-guarded", async (req, res) => {
   }
   const guardianId = await getUserGuardianId(req.user.uid);
   const guadianName = await getUserName(guardianId);
-  if (guardianId === 0) {
+  if (!guardianId) {
     res.status(200).send({
       message: "",
     });
@@ -153,7 +150,7 @@ router.post("/set-guardian", async (req, res) => {
   }
 
   const guardianId = await getUserGuardianId(req.user.uid);
-  if (guardianId !== "") {
+  if (guardianId) {
     const result = await validateUserGuardianPassword(
       req.user.uid,
       req.body.password

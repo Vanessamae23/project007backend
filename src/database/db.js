@@ -237,15 +237,6 @@ export const createUser = async (
 
   let walletRef = ref(db, "wallet/");
 
-  // checkWalletIdExists()
-  //   .then((res) => {
-  //     // Use the walletId once it's confirmed to be unique
-  //     console.log("Unique walletId:", walletId);
-  //   })
-  //   .catch((err) => {
-  //     console.error("Error checking walletId:", err);
-  //   });
-
   return createUserWithEmailAndPassword(auth, email, password)
     .then(async (credentials) => {
       const userRef = ref(db, "users/" + credentials.user.uid + "/");
