@@ -72,46 +72,53 @@ router.post("/intents", async (req, res) => {
 
 // router endpoints
 router.post("/withdraw", async (req, res) => {
-  try {
-    if (req.user === null) {
-      res.status(400).send("not logged in");
-      return;
-    }
-    if (req.user.account_id == null) {
-      res.status(400).send({
-        message: "No bank account so cannot withdraw",
-      });
-      return;
-    }
-    const { amount, pin } = req.body;
-    if (typeof amount !== "number" || amount <= 0) {
-      res.status(400).send("malicious number!");
-      return;
-    }
-    if (typeof pin !== 'string' && typeof pin !== 'number') {
-      res.status(400).send("malicious PIN!");
-      return;
-    }
-    // create a PaymentIntent
-    const customers = await stripe.customers.list({
-      limit: 1,
-      email: req.user.email
+  if (req.user === null) {
+    res.status(400).send("not logged in");
+    return;
+  }
+  if (req.user.account_id == null) {
+    res.status(400).send({
+      message: "No bank account so cannot withdraw",
     });
+    return;
+  }
+  const { amount, pin } = req.body;
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).send("malicious number!");
+    return;
+  }
+  if (typeof pin !== 'string' && typeof pin !== 'number') {
+    res.status(400).send("malicious PIN!");
+    return;
+  }
+  confirmPin(pin.toString(), req.user.uid).then(async feedback => {
+    if (feedback.message === 'success') {
+      getUserBalance(req.user.uid).then(async balance => {
+        if (balance < amount) {
+          res.send({
+            message: "not enough balance",
+          });
+          return;
+        }
+        // create a PaymentIntent
+        const customers = await stripe.customers.list({
+          limit: 1,
+          email: req.user.email
+        });
 
-    const transfer = await stripe.transfers.create({
-      amount: amount * 100,
-      currency: 'sgd',
-      destination: req.user.account_id,
-    });
+        const transfer = await stripe.transfers.create({
+          amount: amount * 100,
+          currency: 'sgd',
+          destination: req.user.account_id,
+        });
 
-    if (transfer.error) {
-      res.status(500).send({
-        message: "Something went wrong" + transfer.error,
-      });
-      return;
-    }
-    confirmPin(pin.toString(), req.user.uid).then(feedback => {
-      if (feedback.message === 'success') {
+        if (transfer.error) {
+          res.status(500).send({
+            message: "Something went wrong" + transfer.error,
+          });
+          return;
+        }
+        
         deductBalance(req.user.uid, amount)
           .then(() => res.send({
             message: 'success'
@@ -119,15 +126,11 @@ router.post("/withdraw", async (req, res) => {
           .catch(() => res.status(500).send({
             message: 'failed'
           }));
-      } else {
-        res.send(feedback);
-      }
-    });
-  } catch (e) {
-    res.status(400).send({
-      message: e.message,
-    })
-  }
+      });
+    } else {
+      res.send(feedback);
+    }
+  });
 });
 
 router.get('/balance', async (req, res) => {
