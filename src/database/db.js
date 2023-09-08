@@ -180,7 +180,8 @@ export const createUser = async (email, password, fullName, pin, account_id, acc
         uid: credentials.user.uid,
         walletId: walletId,
         hashed: hashedPass,
-        account_id: account_id
+        account_id: account_id,
+        risk_score: 0,
       }
       const walletData = {
         [data.uid]: walletId,
