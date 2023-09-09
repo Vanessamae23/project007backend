@@ -47,9 +47,8 @@ router.post("/intents", async (req, res) => {
     // create a PaymentIntent
     const customers = await stripe.customers.list({
       limit: 1,
-      email: req.user.email.toLowerCase()
+      email: req.body.email
     });
-    
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: req.body.amount,
