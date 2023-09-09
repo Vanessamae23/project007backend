@@ -45,7 +45,6 @@ router.post("/confirmPin", async (req, res) => {
 router.post("/intents", async (req, res) => {
   try {
     // create a PaymentIntent
-    console.log("SASAS", req.user.email)
     const customers = await stripe.customers.list({
       limit: 1,
       email: req.user.email.toLowerCase()
@@ -53,7 +52,7 @@ router.post("/intents", async (req, res) => {
     
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
+      amount: req.body.amount,
       currency: "sgd",
       payment_method_types: ["card"],
       customer: customers.data[0].id,
